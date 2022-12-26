@@ -1,9 +1,20 @@
 // インクルード
 #include "App.h"
+#include <cassert>
 
 namespace
 {
 	const auto ClassName = TEXT("SampleWindowClass");    // ウィンドウクラス名
+
+	template<typename T>
+	void SafeRelease(T*& ptr)
+	{
+		if (ptr != nullptr)
+		{
+			ptr->Release();
+			ptr = nullptr;
+		}
+	}
 }
 
 // コンストラクタ
@@ -65,18 +76,18 @@ bool App::InitWnd()
 
 	// ウィンドウの設定
 	WNDCLASSEX wc = {};
-	wc.cbSize			= sizeof(WNDCLASSEX);
-	wc.style			= CS_HREDRAW | CS_VREDRAW;
-	wc.lpfnWndProc		= WndProc;
-	wc.hIcon			= LoadIcon(hInst, IDI_APPLICATION);
-	wc.hCursor			= LoadCursor(hInst, IDC_ARROW);
-	wc.hbrBackground	= GetSysColorBrush(COLOR_BACKGROUND);
-	wc.lpszMenuName		= nullptr;
-	wc.lpszClassName	= ClassName;
-	wc.hIconSm			= LoadIcon(hInst, IDI_APPLICATION);
+	wc.cbSize = sizeof(WNDCLASSEX);
+	wc.style = CS_HREDRAW | CS_VREDRAW;
+	wc.lpfnWndProc = WndProc;
+	wc.hIcon = LoadIcon(hInst, IDI_APPLICATION);
+	wc.hCursor = LoadCursor(hInst, IDC_ARROW);
+	wc.hbrBackground = GetSysColorBrush(COLOR_BACKGROUND);
+	wc.lpszMenuName = nullptr;
+	wc.lpszClassName = ClassName;
+	wc.hIconSm = LoadIcon(hInst, IDI_APPLICATION);
 
 	// ウィンドウの登録
-	if (!RegisterClassEx(&wc)) 
+	if (!RegisterClassEx(&wc))
 	{
 		return false;
 	}
@@ -86,7 +97,7 @@ bool App::InitWnd()
 
 	// ウィンドウのサイズを設定
 	RECT rc = {};
-	rc.right  = static_cast<LONG>(m_Width);
+	rc.right = static_cast<LONG>(m_Width);
 	rc.bottom = static_cast<LONG>(m_Height);
 
 	// ウィンドウサイズを調整
@@ -153,23 +164,208 @@ void App::MainLoop()
 		}
 	}
 }
- 
+
 // ウィンドウプロシージャ
 LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	switch (msg)
 	{
-		case WM_DESTROY:
-		{
-			PostQuitMessage(0);
-		}
-			break;
-		default:
-		{
+	case WM_DESTROY:
+	{
+		PostQuitMessage(0);
+	}
+	break;
+	default:
+	{
 
-		}
-			break;
+	}
+	break;
 	}
 
 	return DefWindowProc(hWnd, msg, wp, lp);
+}
+
+// Direct3Dの初期化処理
+bool App::InitD3D()
+{
+	// デバイスの生成
+	auto hr = D3D12CreateDevice(
+		nullptr,
+		D3D_FEATURE_LEVEL_11_0,
+		IID_PPV_ARGS(&m_pDevice));
+	if (FAILED(hr))
+	{
+		return false;
+	}
+
+	// コマンドキューの生成
+	{
+		D3D12_COMMAND_QUEUE_DESC desc = {};
+		desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+		desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+		desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+		desc.NodeMask = 0;
+
+		hr = m_pDevice->CreateCommandQueue(&desc, IID_PPV_ARGS(&m_pQueue));
+		if (FAILED(hr))
+		{
+			return false;
+		}
+	}
+
+	// スワップチェイン
+	{
+		// DXGIファクトリーの生成
+		IDXGIFactory4* pFactory = nullptr;
+		hr = CreateDXGIFactory(IID_PPV_ARGS(&pFactory));
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		// スワップチェインの生成
+		DXGI_SWAP_CHAIN_DESC desc = {};
+		desc.BufferDesc.Width = m_Width;
+		desc.BufferDesc.Height = m_Height;
+		desc.BufferDesc.RefreshRate.Numerator = 60;
+		desc.BufferDesc.RefreshRate.Denominator = 1;
+		desc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+		desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+		desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		desc.BufferCount = FrameCount;
+		desc.OutputWindow = m_hWnd;
+		desc.Windowed = TRUE;
+		desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+		desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+		// スワップチェインの生成
+		IDXGISwapChain* pSwapChain = nullptr;
+		hr = pFactory->CreateSwapChain(m_pQueue, &desc, &pSwapChain);
+		if (FAILED(hr))
+		{
+			SafeRelease(pFactory);
+			return false;
+		}
+
+		// IDXGISwapChain3を取得
+		hr = pSwapChain->QueryInterface(IID_PPV_ARGS(&m_pSwapChain));
+		if (FAILED(hr))
+		{
+			SafeRelease(pFactory);
+			SafeRelease(pSwapChain);
+			return false;
+		}
+
+		// バックアップ番号を取得
+		m_FrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
+
+		// 不要になったので解放
+		SafeRelease(pFactory);
+		SafeRelease(pSwapChain);
+	}
+
+	// コマンドアロケータの生成
+	{
+		for (auto i = 0u; i < FrameCount; ++i)
+		{
+			hr = m_pDevice->CreateCommandAllocator(
+				D3D12_COMMAND_LIST_TYPE_DIRECT,
+				IID_PPV_ARGS(&m_pCmdAllocator[i]));
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+	}
+
+	// コマンドリストの生成
+	{
+		hr = m_pDevice->CreateCommandList(
+			0,
+			D3D12_COMMAND_LIST_TYPE_DIRECT,
+			m_pCmdAllocator[m_FrameIndex],
+			nullptr,
+			IID_PPV_ARGS(&m_pCmdList));
+		if (FAILED(hr))
+		{
+			return false;
+		}
+	}
+
+	// レンダーターゲットビューの生成
+	{
+		// ディスクリプタヒープの設定
+		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+		desc.NumDescriptors = FrameCount;
+		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		desc.NodeMask = 0;
+
+		// ディスクリプタヒープを生成
+		hr = m_pDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_pHeapRTV));
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		auto handle = m_pHeapRTV->GetCPUDescriptorHandleForHeapStart();
+		auto incrementSize = m_pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+		for (auto i = 0; i < FrameCount; i++)
+		{
+			hr = m_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_pColorBuffer[i]));
+			if(FAILED(hr))
+			{
+				return false;
+			}
+
+			D3D12_RENDER_TARGET_VIEW_DESC viewDesc = {};
+			viewDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+			viewDesc.Texture2D.MipSlice = 0;
+			viewDesc.Texture2D.PlaneSlice = 0;
+
+			// レンダーターゲットビューの生成
+			m_pDevice->CreateRenderTargetView(m_pColorBuffer[i], &viewDesc, handle);
+
+			m_HandleRTV[i] = handle;
+			handle.ptr += incrementSize;
+		}
+	}
+
+	// フェンスの生成
+	{
+		// フェンスカウンターをリセット
+		for (auto i = 0; i < FrameCount; i++)
+		{
+			m_FenceCounter[i] = 0;
+		}
+
+		// フェンスの生成
+		hr = m_pDevice->CreateFence(
+			m_FenceCounter[m_FrameIndex],
+			D3D12_FENCE_FLAG_NONE,
+			IID_PPV_ARGS(&m_pFence));
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		m_FenceCounter[m_FrameIndex]++;
+
+		// イベントの生成
+		m_FenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+		if(m_FenceEvent==nullptr)
+		{
+			return false;
+		}
+	}
+
+	// コマンドリストを閉じる
+	m_pCmdList->Close();
+
+	return true;
 }
