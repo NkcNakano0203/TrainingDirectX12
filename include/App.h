@@ -54,10 +54,12 @@ private:
 	ComPtr<ID3D12CommandQueue>		  m_pQueue;						// コマンドキュー
 	ComPtr<IDXGISwapChain3>			  m_pSwapChain;					// スワップチェイン
 	ComPtr<ID3D12Resource>			  m_pColorBuffer[FrameCount];	// カラーバッファ
+	ComPtr<ID3D12Resource>            m_pDepthBuffer;               // 深度ステンシルバッファです.
 	ComPtr<ID3D12CommandAllocator>	  m_pCmdAllocator[FrameCount];	// コマンドアロケータ
 	ComPtr<ID3D12GraphicsCommandList> m_pCmdList;					// コマンドリスト
 	ComPtr<ID3D12DescriptorHeap>	  m_pHeapRTV;					// ディスクリプタヒープ
 	ComPtr<ID3D12Fence>				  m_pFence;						// フェンス
+	ComPtr<ID3D12DescriptorHeap>      m_pHeapDSV;                   // ディスクリプタヒープです(深度ステンシルビュー).
 	ComPtr<ID3D12DescriptorHeap>	  m_pHeapCBV;					// ディスクリプタヒープ
 	ComPtr<ID3D12Resource>			  m_pVB;						// 頂点バッファ
 	ComPtr<ID3D12Resource>            m_pIB;						// インデックスバッファです.
@@ -69,6 +71,7 @@ private:
 	uint64_t						  m_FenceCounter[FrameCount];	// フェンスカウント
 	uint32_t						  m_FrameIndex;					// フレーム番号
 	D3D12_CPU_DESCRIPTOR_HANDLE		  m_HandleRTV[FrameCount];		// CPUディスクリプタ（レンダーターゲットビュー）
+	D3D12_CPU_DESCRIPTOR_HANDLE		  m_HandleDSV;                  // CPUディスクリプタです(深度ステンシルビュー).
 	D3D12_VERTEX_BUFFER_VIEW		  m_VBV;						// 頂点バッファビュー
 	D3D12_INDEX_BUFFER_VIEW			  m_IBV;                        // インデックスバッファビューです.
 	D3D12_VIEWPORT					  m_Viewport;					// ビューポート
