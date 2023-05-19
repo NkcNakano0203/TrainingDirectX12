@@ -11,6 +11,7 @@
 
 #pragma comment( lib, "d3d12.lib" )
 #pragma comment( lib, "dxgi.lib" )
+#pragma comment( lib, "dxguid.lib")
 #pragma comment( lib, "d3dcompiler.lib" )
 
 template<typename T> using ComPtr = Microsoft::WRL::ComPtr<T>;
@@ -29,6 +30,13 @@ template<typename T> struct ConstantBufferView
 	D3D12_CPU_DESCRIPTOR_HANDLE     HandleCPU;	// CPUディスクリプタハンドル
 	D3D12_GPU_DESCRIPTOR_HANDLE     HandleGPU;	// GPUディスクリプタハンドル
 	T* pBuffer;									// バッファ先頭へのポインタ
+};
+
+struct Texture
+{
+	ComPtr<ID3D12Resource> pResource; // リソース
+	D3D12_CPU_DESCRIPTOR_HANDLE HandleCPU;	// CPUディスクリプタハンドル
+	D3D12_GPU_DESCRIPTOR_HANDLE HandleGPU;	// GPUディスクリプタハンドル
 };
 
 class App
@@ -54,16 +62,15 @@ private:
 	ComPtr<ID3D12CommandQueue>		  m_pQueue;						// コマンドキュー
 	ComPtr<IDXGISwapChain3>			  m_pSwapChain;					// スワップチェイン
 	ComPtr<ID3D12Resource>			  m_pColorBuffer[FrameCount];	// カラーバッファ
-	ComPtr<ID3D12Resource>            m_pDepthBuffer;               // 深度ステンシルバッファです.
+	ComPtr<ID3D12Resource>            m_pDepthBuffer;               // 深度ステンシルバッファ
 	ComPtr<ID3D12CommandAllocator>	  m_pCmdAllocator[FrameCount];	// コマンドアロケータ
 	ComPtr<ID3D12GraphicsCommandList> m_pCmdList;					// コマンドリスト
 	ComPtr<ID3D12DescriptorHeap>	  m_pHeapRTV;					// ディスクリプタヒープ
 	ComPtr<ID3D12Fence>				  m_pFence;						// フェンス
-	ComPtr<ID3D12DescriptorHeap>      m_pHeapDSV;                   // ディスクリプタヒープです(深度ステンシルビュー).
-	ComPtr<ID3D12DescriptorHeap>	  m_pHeapCBV;					// ディスクリプタヒープ
+	ComPtr<ID3D12DescriptorHeap>      m_pHeapCBV_SRV_UAV;           // ディスクリプタヒープ(定数バッファビュー・シェーダリソースビュー・アンオーダードアクセスビュー)
 	ComPtr<ID3D12Resource>			  m_pVB;						// 頂点バッファ
-	ComPtr<ID3D12Resource>            m_pIB;						// インデックスバッファです.
-	ComPtr<ID3D12Resource>			  m_pCB[FrameCount*2];			// 定数バッファ
+	ComPtr<ID3D12Resource>            m_pIB;						// インデックスバッファ
+	ComPtr<ID3D12Resource>			  m_pCB[FrameCount * 2];			// 定数バッファ
 	ComPtr<ID3D12RootSignature>		  m_pRootSignature;				// ルートシグネチャ
 	ComPtr<ID3D12PipelineState>		  m_pPSO;						// パイプラインステート
 
@@ -76,22 +83,23 @@ private:
 	D3D12_INDEX_BUFFER_VIEW			  m_IBV;                        // インデックスバッファビューです.
 	D3D12_VIEWPORT					  m_Viewport;					// ビューポート
 	D3D12_RECT						  m_Scissor;					// シザー矩形
-	ConstantBufferView<Transform>	  m_CBV[FrameCount*2];			// 定数バッファビュー
+	ConstantBufferView<Transform>	  m_CBV[FrameCount * 2];			// 定数バッファビュー
 	float							  m_RotateAngle;				// 回転角
+	Texture							  m_Texture;					// テクスチャ
 
 	// プライベート関数
-    bool InitApp();
-    void TermApp();
-    bool InitWnd();
-    void TermWnd();
-    void MainLoop();
-    bool InitD3D();
-    void TermD3D();
-    void Render();
-    void WaitGpu();
-    void Present(uint32_t interval);
-    bool OnInit();
-    void OnTerm();
+	bool InitApp();
+	void TermApp();
+	bool InitWnd();
+	void TermWnd();
+	void MainLoop();
+	bool InitD3D();
+	void TermD3D();
+	void Render();
+	void WaitGpu();
+	void Present(uint32_t interval);
+	bool OnInit();
+	void OnTerm();
 
 	static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp);
 };
