@@ -1,7 +1,9 @@
 struct VSInput
 {
 	float3 Position : POSITION;	// 位置座標
-	float2 TexCoord : TEXCOORD;	// テクスチャ座標 
+	float3 Normal	: NORMAL;	// 法線ベクトル
+	float2 TexCoord : TEXCOORD;	// テクスチャ座標
+	float3 Tangent	: TANGENT;	// 接線ベクトル 
 };
 
 struct VSOutput

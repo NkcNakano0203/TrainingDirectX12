@@ -1,13 +1,18 @@
 #pragma once
 
 // インクルード
+//#define  NOMINMAX
 #include <Windows.h>
+//#undef min
+//#undef max
+
 #include <cstdint>
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include <wrl/client.h>
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
+#include "Mesh.h"
 
 #pragma comment( lib, "d3d12.lib" )
 #pragma comment( lib, "dxgi.lib" )
@@ -67,7 +72,9 @@ private:
 	ComPtr<ID3D12GraphicsCommandList> m_pCmdList;					// コマンドリスト
 	ComPtr<ID3D12DescriptorHeap>	  m_pHeapRTV;					// ディスクリプタヒープ
 	ComPtr<ID3D12Fence>				  m_pFence;						// フェンス
-	ComPtr<ID3D12DescriptorHeap>      m_pHeapCBV_SRV_UAV;           // ディスクリプタヒープ(定数バッファビュー・シェーダリソースビュー・アンオーダードアクセスビュー)
+	//ComPtr<ID3D12DescriptorHeap>      m_pHeapCBV_SRV_UAV;				// ディスクリプタヒープ(定数バッファビュー・シェーダリソースビュー・アンオーダードアクセスビュー)
+	ComPtr<ID3D12DescriptorHeap>	  m_pHeapDSV;					// ディスクリプタヒープです(深度ステンシルビュー)
+	ComPtr<ID3D12DescriptorHeap>      m_pHeapCBV;                   // ディスクリプタヒープです(定数バッファビュー・シェーダリソースビュー・アンオーダードアクセスビュー)
 	ComPtr<ID3D12Resource>			  m_pVB;						// 頂点バッファ
 	ComPtr<ID3D12Resource>            m_pIB;						// インデックスバッファ
 	ComPtr<ID3D12Resource>			  m_pCB[FrameCount * 2];			// 定数バッファ
@@ -86,6 +93,8 @@ private:
 	ConstantBufferView<Transform>	  m_CBV[FrameCount * 2];			// 定数バッファビュー
 	float							  m_RotateAngle;				// 回転角
 	Texture							  m_Texture;					// テクスチャ
+	std::vector<Mesh>				  m_Meshes;						// メッシュ
+	std::vector<Material>			  m_Materials;					// マテリアル
 
 	// プライベート関数
 	bool InitApp();
